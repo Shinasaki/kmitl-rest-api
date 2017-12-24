@@ -13,11 +13,8 @@ var MongoClient = require('mongodb').MongoClient
 var dbUrl = "mongodb://localhost:27017"
 var ObjectId = require('mongodb').ObjectID;
 
-
-
-// HapiAuth
+// Hapi Validate
 const validate = function (decoded, request, callback) {
-    console.log(decoded)
     if (decoded) {
         MongoClient.connect(dbUrl, function (err, db) {
             const dbase = db.db('kmitl-restful');
@@ -26,13 +23,15 @@ const validate = function (decoded, request, callback) {
             })
         })
     } else return callback(null, false);
-
 };
+
+
 const server = new Hapi.Server();
 server.connection({
-  host: 'https://grabkeys.net',
+  host: 'localhost',
   port: 5000
 });
+// server.connection({ routes: { cors: true } })
 
 
 server.register(HapiAuth, err => {
@@ -119,7 +118,12 @@ server.route({
     method: 'GET',
     path: '/user/get',
     handler: (client_request, reply) => {
-        reply('WEE')
+        MongoClient.connect(dbUrl, function (err, db) {
+            const dbase = db.db('kmitl-restful');
+            dbase.collection('users').find(ObjectId(client_request.auth.credentials.id)).toArray(function(err, result) {
+                if (typeof(result[0]) == 'undefined') reply(err).code(204); else reply(result).code(200)
+            })
+        })
     }
 })
 
