@@ -30,7 +30,7 @@ const validate = function (decoded, request, callback) {
 };
 const server = new Hapi.Server();
 server.connection({
-  host: 'localhost',
+  host: 'https://grabkeys.net',
   port: 5000
 });
 
