@@ -29,7 +29,8 @@ const validate = function (decoded, request, callback) {
 const server = new Hapi.Server();
 server.connection({
   host: 'localhost',
-  port: 5000
+  port: 5000,
+  routes: { cors: true }
 });
 // server.connection({ routes: { cors: true } })
 
@@ -81,32 +82,57 @@ server.route({
             headers: { 'Content-type' : 'application/json' }
         };
 
-        var test = Request(options, function (error, response, body) {
+        Request(options, function (error, response, body) {
             if (!error && body.code == 200) {
 
-                // new user -> add
+                // CONNECT DB
                 MongoClient.connect(dbUrl, function (err, db) {
                     if (err) throw reply(err).code(500);
-                    const dbase = db.db('kmitl-restful');
 
-                    // create object
+        
+                    // create object.
+                    const dbase = db.db('kmitl-restful');
                     var data = {
-                        "username": requestData.username,
-                        "permission": 0
+                        studentId : requestData.username,
+                        permission : {
+                            "entry": 1,
+                            "vote": 1
+                        }
                     }
 
-                    // check user exist
-                    dbase.collection('users').find({"username": data.username}).toArray(function(err, result) {
-                        if (err) reply(err).code(202); else {
-                            // new user --> add
-                            if (typeof(result[0]) == 'undefined') dbase.collection('users').update({"username": requestData.username}, data, {upsert: true});
-                            
 
-                            // response token key
-                            let objId = { id: result[0]._id.toString() }
-                            let token = JWT.sign(objId, 'mysecretKey', { expiresIn: '1d' });
-                            if (err) reply(err).code(202); else reply({ token: token }).code(200);
+                    // CHECK USER EXIST
+                    dbase.collection('users').find({"studentId": data.studentId}).toArray(function(err, result) {
+                        if (typeof(result[0]) == 'undefined') { // new user.
+                            try {
+
+
+                                // update user upsert.
+                                dbase.collection('users').insertOne(data)
+                                dbase.collection('users').find({"studentId": requestData.username}).toArray(function(err, response) {
+                                    // response token key.
+                                    let objId = { id: response[0]._id.toString() };
+                                    let token = JWT.sign(objId, 'mysecretKey', { expiresIn: '1d' });
+                                    reply({ token: token}).code(200);
+                                });
+
+
+                            } catch (err) { throw err; console.log('[Error] ' + err + "."); return; }
+                        } else { // old user.
+                            try {
+
+
+                                // response token key
+                                let objId = { id: result[0]._id.toString() }
+                                let token = JWT.sign(objId, 'mysecretKey', { expiresIn: '1d' });
+                                reply({ token: token }).code(200); 
+
+
+                            } catch (err) { throw err; console.log('[Error] ' + err + "."); return; }
                         }
+
+                        // display user
+                        console.log("[" + data.studentId + "] Logged In.")
                     })
                 })
             } else { reply(body.description).code(401); }
@@ -128,15 +154,7 @@ server.route({
 })
 
 
-server.route({
-  method: 'GET',
-  path: '/me',
-  handler: (request, reply) => {
-    reply(request.auth.credentials);
-  }
-});
-
 server.start(() => {
-  console.log("Server is running");
+  console.log("[KMITL - RESTFUL API] Started.");
 });
 
