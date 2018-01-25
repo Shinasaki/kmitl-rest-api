@@ -47,6 +47,8 @@ server.register(HapiAuth, err => {
 })
 
 
+
+
 // Login Route
 server.route({
     method: 'POST',
@@ -152,6 +154,47 @@ server.route({
         })
     }
 })
+
+// ------------------ //
+// -- TEACHER PAGE -- //
+// ------------------ //
+server.route({
+    method: 'POST',
+    path: '/subject/add',
+    handler: (client_request, reply) => {
+        MongoClient.connect(dbUrl, function (err, db) {
+            const dbase = db.db('kmitl-restful');
+            dbase.collection('users').find(ObjectId(client_request.auth.credentials.id)).toArray(function(err, result) {
+                if (typeof(result[0]) == 'undefiend') {
+                    reply('user notfound.').code(202);
+                    return;
+                } else {
+                    if (result[0].permission.entry >= 2) {
+                        dbase.collection('subjects').find({
+                            $and: [
+                                { "subjects_year": client_request.payload.subjects_year},
+                                { "subjects_name": client_request.payload.subjects_name},
+                            ]
+                        }).toArray(function(err, result) {
+                            if (typeof(result[0]) == 'undefined') {
+                                dbase.collection('subjects').insertOne(client_request.payload);
+                                reply('add success.').code(200);
+                            } else if (typeof(result[0]) != 'undefined') {
+                                reply('subject is not exist.').code(400);
+                                return;
+                            } else {
+                                reply("can't connect dabase server.").code(500);
+                            }
+                        })
+                    } else {
+                        reply('permission denied.').code(202);
+                    }
+                }
+            });
+        });
+    }
+});
+
 
 
 server.start(() => {
