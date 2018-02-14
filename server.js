@@ -159,6 +159,34 @@ server.route({
 // -- TEACHER PAGE -- //
 // ------------------ //
 server.route({
+    method: 'GET',
+    path: '/subject/get',
+    handler: (client_request, reply) => {
+        MongoClient.connect(dbUrl, function (err, db) {
+            const dbase = db.db('kmitl-restful');
+            dbase.collection('users').find(ObjectId(client_request.auth.credentials.id)).toArray(function(err, result) {
+                if (typeof(result[0]) == 'undefiend') {
+                    reply('user notfound.').code(202);
+                    return;
+                } else {
+                    if (result[0].permission.entry >= 2) {
+                        dbase.collection('subjects').find({}).toArray(function(err, subject) {
+                            if (typeof(subject[0]) == 'undefined') {
+                                reply('subject is empty.').code(204);
+                            } else if (typeof(subject[0]) != 'undefined') {
+                                reply(subject).code(200);
+                                return;
+                            } else {
+                                reply("can't connect dabase server.").code(500);
+                            }
+                        })
+                    }
+                }
+            });
+        });
+    }
+});
+server.route({
     method: 'POST',
     path: '/subject/add',
     handler: (client_request, reply) => {
